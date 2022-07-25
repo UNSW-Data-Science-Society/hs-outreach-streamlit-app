@@ -22,7 +22,7 @@ from sklearn.ensemble import ExtraTreesRegressor
 
 df = pd.read_csv('tiktok_displayed.csv')
 
-@st.cache
+@st.cache(allow_output_mutation=True)
 def regressor(X, y):
     etr = ExtraTreesRegressor().fit(X, y)
     return etr
