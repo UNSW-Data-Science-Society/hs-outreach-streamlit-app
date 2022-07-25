@@ -8,7 +8,10 @@ import joblib
 import pandas as pd
 import numpy as np
 import time
+import pickle
 from scipy.special import expit
+from sklearn.ensemble import ExtraTreesRegressor
+
 # from sklearn.model_selection import train_test_split, GridSearchCV, RandomizedSearchCV
 # from sklearn.pipeline import Pipeline
 # from sklearn.compose import ColumnTransformer
@@ -17,7 +20,31 @@ from scipy.special import expit
 # from sklearn.feature_extraction.text import CountVectorizer
 # from sklearn.naive_bayes import MultinomialNB
 
-df = pd.read_csv('tiktok.csv')
+df = pd.read_csv('tiktok_displayed.csv')
+
+@st.cache
+def regressor(X, y):
+    etr = ExtraTreesRegressor().fit(X, y)
+    return etr
+
+X = df[['danceability',
+       'key', 'loudness', 'speechiness', 'acousticness',
+       'instrumentalness', 'tempo', 'duration_mins', 'energy', 'liveness']]
+
+y = df[["popularity"]]
+saved_model = regressor(X, y)
+
+
+cols_to_display = ['track_name', 'artist_name', 'popularity', 'duration_mins',
+                   'loudness', 'danceability', 'key', 'speechiness', 'acousticness',
+                   'instrumentalness', 'tempo']
+
+artists_displayed = ['Taylor Swift', 'Black Eyed Peas', 'Ariana Grande', 'Justin Beiber', 'Beyoncé', 'Lady Gaga', 'Katy Perry']
+
+df_displayed = df.loc[df.artist_name.isin(artists_displayed), cols_to_display].copy()  # only need it once
+
+df_ranked = df.sort_values(by='popularity', ascending=False).reset_index().copy()
+
 
 def prediction(sentence, saved_model):
     observation = pd.DataFrame({'Message': [sentence]})
@@ -25,20 +52,97 @@ def prediction(sentence, saved_model):
     return yhat
 
 
+def get_min(col, data=df):
+    return float(round(data[col].min()))
+
+
+def get_max(col, data=df):
+    return float(round(data[col].max()))
+
+
 st.markdown('# Model Building Demo')
 st.image('Emanuel.png', width=300)
 st.image('datasoc.png', width=300)
 model = st.selectbox('What type of model would you like to build?', ('TikTok Song Popularity Model', 'Spam Detector'))
 if model == 'TikTok Song Popularity Model':
-    st.write('Here is the data we will use to build our model:')
-    st.dataframe(df.select_dtypes(include=np.number).head())
-    duration = st.slider('duration', min_value=None, max_value=None)
-    popularity = st.slider('popularity', min_value=None, max_value=None)
-    danceability = st.slider('danceability', min_value=None, max_value=None)
-    energy = st.slider('energy', min_value=None, max_value=None)
-    liveness = st.slider('Liveness', min_value=None, max_value=None)
 
-    st.write(2*duration + np.log(1 + energy) + liveness + expit(danceability))
+    # saved_model = joblib.load('tiktok_ExtraTreesRegressor.pkl')
+
+    st.write('Here is the data we used to build our model:')
+    st.dataframe(df_displayed.head(50))
+
+    # Now we can work with the original df
+    st.write(f'The average song popularity was {np.round(df.popularity.mean(), 2)}')
+    st.write('Here are some songs that were around that mark')
+    st.dataframe(df.loc[df.popularity.isin([50, 51]), ['artist_name', 'track_name', 'popularity']].sample(5, random_state=6))
+
+    st.markdown("# Let's now make some predictions!")
+
+    danceability = st.slider('Danceability',
+                             min_value=get_min('danceability'),
+                             max_value=get_max('danceability'),
+                             step=0.01)
+
+    loudness = st.slider('Loudness',
+                         min_value=get_min('loudness'),
+                         max_value=get_max('loudness'),
+                         step=0.01)
+
+    speechiness = st.slider('Speechiness',
+                            min_value=get_min('speechiness'),
+                            max_value=get_max('speechiness'),
+                            step=0.01)
+
+    acousticness = df['acousticness'].mean()
+
+    instrumentalness = st.slider('instrumentalness',
+                                 min_value=get_min('instrumentalness'),
+                                 max_value=get_max('instrumentalness'),
+                                 step=0.01)
+
+    tempo = st.slider('Tempo',
+                      min_value=get_min('tempo'),
+                      max_value=get_max('tempo'),
+                      step=0.01)
+
+    duration_minutes = st.slider('Duration (Minutes)',
+                                 min_value=get_min('duration_mins'),
+                                 max_value=get_max('duration_mins'),
+                                 step=0.01)
+
+    energy = st.slider('energy',
+                       min_value=get_min('energy'),
+                       max_value=get_max('energy'),
+                       step=0.01)
+
+    liveness = st.slider('Liveness',
+                         min_value=get_min('liveness'),
+                         max_value=get_max('liveness'),
+                         step=0.01)
+
+    key = st.selectbox('Key', options=[i for i in range(int(get_max('key')) + 1)])
+
+    pred_array = [danceability, key, loudness, speechiness, acousticness,
+                  instrumentalness, tempo, duration_minutes, energy, liveness]
+
+    yhat = saved_model.predict([pred_array])[0]
+
+    st.markdown('### Popularity')
+    st.write(f"{np.round(yhat, 2)}")
+
+    st.markdown('### Rank')
+    st.write(f'{df_ranked[df_ranked.popularity < yhat].index[0]} out of {df_ranked.index[-1]}')
+
+    st.image('plot.png', width=800)
+
+    # st.write(saved_model)
+    # preds = saved_model.predict(df[['danceability', 'key', 'loudness', 'speechiness', 'acousticness',
+    #                                 'instrumentalness', 'tempo', 'duration_minutes', 'energy', "liveness"]])
+    #
+    # st.write(saved_model)
+    #
+    # # st.write(pd.Series(preds).describe())
+
 
 else:
     saved_pipeline = joblib.load('spam_detector_full_pipeline.joblib')
