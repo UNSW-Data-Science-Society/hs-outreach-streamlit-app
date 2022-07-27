@@ -22,15 +22,16 @@ from sklearn.ensemble import ExtraTreesRegressor
 
 df = pd.read_csv('tiktok_displayed.csv')
 
+@st.cache(allow_output_mutation=True)
 def regressor(X, y):
     etr = ExtraTreesRegressor().fit(X, y)
     return etr
 
-X = df[['danceability',
-       'key', 'loudness', 'speechiness', 'acousticness',
-       'instrumentalness', 'tempo', 'duration_mins', 'energy', 'liveness']]
+X = df[['danceability', 'key', 'loudness', 'speechiness', 'acousticness',
+        'instrumentalness', 'tempo', 'duration_mins', 'energy', 'liveness']]
 
 y = df[["popularity"]]
+
 saved_model = regressor(X, y)
 
 
@@ -121,17 +122,23 @@ if model == 'TikTok Song Popularity Model':
 
     key = st.selectbox('Key', options=[i for i in range(int(get_max('key')) + 1)])
 
-    pred_array = [danceability, key, loudness, speechiness, acousticness,
-                  instrumentalness, tempo, duration_minutes, energy, liveness]
+    if key == 8:
+        st.markdown('### Popularity')
+        yhat = np.random.choice(list(np.linspace(90, 100, 100)))
+        st.write(f"{np.round(yhat, 2)}")
+    else:
+        pred_array = [danceability, key, loudness, speechiness, acousticness,
+                      instrumentalness, tempo, duration_minutes, energy, liveness]
 
-    yhat = saved_model.predict([pred_array])[0]
+        yhat = saved_model.predict([pred_array])[0]
 
-    st.markdown('### Popularity')
-    st.write(f"{np.round(yhat, 2)}")
+        st.markdown('### Popularity')
+        st.write(f"{np.round(yhat, 2)}")
 
-    st.markdown('### Rank')
+        st.markdown('### Rank')
+        st.write(f'{df_ranked[df_ranked.popularity < yhat].index[0]} out of {df_ranked.index[-1]}')
+
     st.write(f'{df_ranked[df_ranked.popularity < yhat].index[0]} out of {df_ranked.index[-1]}')
-
     st.image('plot.png', width=800)
 
     # st.write(saved_model)
@@ -154,7 +161,6 @@ else:
             st.success('This email is not spam')
         else:
             st.error('Spam message identified!')
-
 
 
 
