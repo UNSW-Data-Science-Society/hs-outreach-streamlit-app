@@ -136,7 +136,6 @@ if model == 'TikTok Song Popularity Model':
         st.write(f"{np.round(yhat, 2)}")
 
         st.markdown('### Rank')
-        st.write(f'{df_ranked[df_ranked.popularity < yhat].index[0]} out of {df_ranked.index[-1]}')
 
     st.write(f'{df_ranked[df_ranked.popularity < yhat].index[0]} out of {df_ranked.index[-1]}')
     st.image('plot.png', width=800)
